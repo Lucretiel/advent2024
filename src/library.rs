@@ -108,9 +108,12 @@ pub trait IterExt: Iterator + Sized {
         Chunks { iterator: self }
     }
 
-    fn streaming_windows<const N: usize>(self) -> Windows<Self, N> {
+    fn streaming_windows<const N: usize>(mut self) -> Windows<Self, N> {
         Windows {
-            state: State::Begin,
+            state: match try_build_iter(&mut self) {
+                Some(buffer) => State::Buffered(buffer),
+                None => State::Done,
+            },
             iter: self,
         }
     }
@@ -171,7 +174,6 @@ macro_rules! parser {
 
 #[derive(Debug, Clone, Copy)]
 enum State<T, const N: usize> {
-    Begin,
     Buffered([T; N]),
     Done,
 }
@@ -204,10 +206,7 @@ where
             PushResult::NotFull(builder) => ControlFlow::Continue(builder),
         });
 
-    match result {
-        ControlFlow::Continue(_) => None,
-        ControlFlow::Break(array) => Some(array),
-    }
+    result.break_value()
 }
 
 fn build_iter<I, const N: usize>(iter: I) -> [I::Item; N]
@@ -225,7 +224,6 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let buffer = match self.state.take() {
-            State::Begin => try_build_iter(&mut self.iter)?,
             State::Buffered(buffer) => buffer,
             State::Done => return None,
         };
@@ -239,13 +237,6 @@ where
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self.state {
-            State::Begin => {
-                let (min, max) = self.iter.size_hint();
-                (
-                    min.saturating_sub(N - 1),
-                    max.map(|max| max.saturating_sub(N - 1)),
-                )
-            }
             State::Buffered(_) => {
                 let (min, max) = self.iter.size_hint();
                 (
@@ -257,16 +248,19 @@ where
         }
     }
 
-    fn fold<B, F>(mut self, init: B, mut func: F) -> B
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.iter.count() + 1
+    }
+
+    fn fold<B, F>(self, init: B, mut func: F) -> B
     where
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
         let buffer = match self.state {
-            State::Begin => match try_build_iter(&mut self.iter) {
-                None => return init,
-                Some(buffer) => buffer,
-            },
             State::Buffered(buffer) => buffer,
             State::Done => return init,
         };
@@ -278,6 +272,35 @@ where
 
         func(accum, buffer)
     }
+
+    fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>,
+    {
+        let buffer = match self.state.take() {
+            State::Buffered(buffer) => buffer,
+            State::Done => return R::from_output(init),
+        };
+
+        let out = self.iter.try_fold((init, buffer), |(accum, buffer), item| {
+            let new_buffer = build_iter(buffer[1..].iter().cloned().chain([item]));
+
+            match f(accum, buffer).branch() {
+                ControlFlow::Continue(cont) => ControlFlow::Continue((cont, new_buffer)),
+                ControlFlow::Break(brk) => ControlFlow::Break((brk, new_buffer)),
+            }
+        });
+
+        match out {
+            ControlFlow::Continue((accum, buffer)) => f(accum, buffer),
+            ControlFlow::Break((out, buffer)) => {
+                self.state = State::Buffered(buffer);
+                R::from_residual(out)
+            }
+        }
+    }
 }
 
 impl<I: Iterator, const N: usize> FusedIterator for Windows<I, N> where I::Item: Clone {}
@@ -288,7 +311,6 @@ where
 {
     fn len(&self) -> usize {
         match self.state {
-            State::Begin => self.iter.len().saturating_sub(N - 1),
             State::Buffered(_) => self.iter.len() + 1,
             State::Done => 0,
         }

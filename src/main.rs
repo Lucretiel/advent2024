@@ -1,4 +1,5 @@
 #![feature(array_windows)]
+#![feature(try_trait_v2)]
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
