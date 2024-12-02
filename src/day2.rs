@@ -91,6 +91,9 @@ fn is_safe_with_damper(levels: &[i32], rule: impl Copy + Fn(i32, i32) -> bool) -
     }
 }
 
+// Test if the pair of elements *around* the omitted index fulfill the given
+// rule. If either of the elements doesn't exist because it's out of bounds,
+// we say that the rule is fulfilled.
 #[inline]
 fn test_report_with_omitted_index(
     levels: &[i32],
