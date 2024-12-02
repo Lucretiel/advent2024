@@ -93,6 +93,40 @@ impl<I: Iterator, const N: usize> Iterator for Chunks<I, N> {
 
         accum
     }
+
+    fn try_fold<B, F, R>(&mut self, init: B, mut func: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>,
+    {
+        let builder = match ArrayBuilder::start() {
+            PushResult::Full(_array) => panic!("called Chunks::try_fold but N is 0"),
+            PushResult::NotFull(builder) => builder,
+        };
+
+        let out = self
+            .iterator
+            .try_fold((builder, init), |(builder, accum), item| {
+                match builder.push(item) {
+                    PushResult::NotFull(builder) => ControlFlow::Continue((builder, accum)),
+                    PushResult::Full(array) => func(accum, array).branch().map_continue(|accum| {
+                        (
+                            match ArrayBuilder::start() {
+                                PushResult::Full(_arr) => unreachable!(),
+                                PushResult::NotFull(builder) => builder,
+                            },
+                            accum,
+                        )
+                    }),
+                }
+            });
+
+        match out {
+            ControlFlow::Continue((_, accum)) => R::from_output(accum),
+            ControlFlow::Break(residual) => R::from_residual(residual),
+        }
+    }
 }
 
 impl<T: FusedIterator, const N: usize> FusedIterator for Chunks<T, N> {}
