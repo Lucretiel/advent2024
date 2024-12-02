@@ -1,3 +1,5 @@
+#![feature(array_windows)]
+
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 mod library;
