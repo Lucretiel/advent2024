@@ -1,9 +1,8 @@
 use std::convert::Infallible;
 
-use macro_rules_attribute::apply;
 use nom_supreme::{error::ErrorTree, final_parser::final_parser};
 
-use crate::library::{definitely, ITResult};
+use crate::library::ITResult;
 
 #[derive(Debug)]
 pub struct Input {
@@ -27,12 +26,10 @@ impl TryFrom<&str> for Input {
     }
 }
 
-//#[apply(definitely)]
 pub fn part1(input: Input) -> anyhow::Result<Infallible> {
     anyhow::bail!("not implemented yet")
 }
 
-//#[apply(definitely)]
 pub fn part2(input: Input) -> anyhow::Result<Infallible> {
     anyhow::bail!("not implemented yet")
 }
