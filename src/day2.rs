@@ -3,23 +3,32 @@ use nom_supreme::{error::ErrorTree, final_parser::final_parser, ParserExt};
 
 use crate::library::{split_parser, Definitely, ITResult, IterExt};
 
+#[inline]
+fn ascending_rule(left: i32, right: i32) -> bool {
+    matches!(right - left, 1..4)
+}
+
+#[inline]
+fn descending_rule(left: i32, right: i32) -> bool {
+    matches!(left - right, 1..4)
+}
+
 #[derive(Debug, Clone)]
 struct Report {
     levels: Vec<i32>,
 }
 
 impl Report {
+    #[inline]
     fn is_safe(&self) -> bool {
-        is_safe_rule(self.levels.iter().copied(), |left, right| {
-            matches!(right - left, 1..4)
-        }) || is_safe_rule(self.levels.iter().copied(), |left, right| {
-            matches!(left - right, 1..4)
-        })
+        is_safe_rule(self.levels.iter().copied(), ascending_rule)
+            || is_safe_rule(self.levels.iter().copied(), descending_rule)
     }
 
+    #[inline]
     fn is_safe_with_damper(&self) -> bool {
-        is_safe_with_damper(&self.levels, |left, right| matches!(right - left, 1..4))
-            || is_safe_with_damper(&self.levels, |left, right| matches!(left - right, 1..4))
+        is_safe_with_damper(&self.levels, ascending_rule)
+            || is_safe_with_damper(&self.levels, descending_rule)
     }
 }
 
