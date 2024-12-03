@@ -42,11 +42,8 @@ fn memmem_split<'i>(haystack: &'i str, finder: &memmem::Finder<'_>) -> Option<(&
 }
 
 pub fn part2(mut input: &str) -> Definitely<i32> {
-    const DO: &str = "do()";
-    const DONT: &str = "don't()";
-
-    let do_finder = memmem::Finder::new(DO);
-    let dont_finder = memmem::Finder::new(DONT);
+    let do_finder = memmem::Finder::new("do()");
+    let dont_finder = memmem::Finder::new("don't()");
 
     // Create an iterator over all of the enabled zones of the input by scanning
     // for a `don't()` tag, then a `do()` tag.
