@@ -51,10 +51,7 @@ pub fn part2(input: &str) -> Definitely<i32> {
             } else {
                 let product = match enabled {
                     false => 0,
-                    true => match parse_mul(s) {
-                        Err(_) => 0,
-                        Ok((_, (a, b))) => a * b,
-                    },
+                    true => consume_mul_at_point(s),
                 };
 
                 (enabled, sum + product)
