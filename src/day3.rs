@@ -1,16 +1,13 @@
-use std::{convert::Infallible, iter};
+use std::iter;
 
 use memchr::memmem;
 use nom::{
     character::complete::{char, digit1},
     IResult, Parser,
 };
-use nom_supreme::{error::ErrorTree, final_parser::final_parser, tag::complete::tag, ParserExt};
+use nom_supreme::{tag::complete::tag, ParserExt};
 
-use crate::{
-    library::{Definitely, ITResult},
-    parser,
-};
+use crate::{library::Definitely, parser};
 
 #[inline]
 fn parse_mul(input: &str) -> IResult<&str, (i32, i32), ()> {
@@ -35,28 +32,47 @@ pub fn part1(input: &str) -> Definitely<i32> {
         .sum())
 }
 
-pub fn part2(input: &str) -> Definitely<i32> {
-    let regex = regex::Regex::new(r"do\(\)|don't\(\)|mul\([0-9]{1,3},[0-9]{1,3}\)")
-        .expect("regex should have valid syntax");
+fn memmem_split<'i>(haystack: &'i str, finder: &memmem::Finder<'_>) -> Option<(&'i str, &'i str)> {
+    debug_assert!(std::str::from_utf8(finder.needle()).is_ok());
+    finder.find(haystack.as_bytes()).map(|point| {
+        let left = &haystack[..point];
+        let right = &haystack[point + finder.needle().len()..];
+        (left, right)
+    })
+}
 
-    let (_, sum) = regex
-        .find_iter(input)
-        .fold((true, 0), |(enabled, sum), item| {
-            let s = item.as_str();
+pub fn part2(mut input: &str) -> Definitely<i32> {
+    const DO: &str = "do()";
+    const DONT: &str = "don't()";
 
-            if s.starts_with("do()") {
-                (true, sum)
-            } else if s.starts_with("don't") {
-                (false, sum)
-            } else {
-                let product = match enabled {
-                    false => 0,
-                    true => consume_mul_at_point(s),
-                };
+    let do_finder = memmem::Finder::new(DO);
+    let dont_finder = memmem::Finder::new(DONT);
 
-                (enabled, sum + product)
-            }
-        });
+    // Create an iterator over all of the enabled zones of the input by scanning
+    // for a `don't()` tag, then a `do()` tag.
+    let enabled_zones = iter::from_fn(move || {
+        if input.is_empty() {
+            return None;
+        }
 
-    Ok(sum)
+        let (zone, tail) = match memmem_split(input, &dont_finder) {
+            None => (input, ""),
+            Some((zone, tail)) => match memmem_split(tail, &do_finder) {
+                None => (zone, ""),
+                Some((_, tail)) => (zone, tail),
+            },
+        };
+
+        input = tail;
+        Some(zone)
+    });
+
+    let mul_finder = memmem::Finder::new("mul");
+    Ok(enabled_zones
+        .flat_map(|zone| {
+            mul_finder
+                .find_iter(zone.as_bytes())
+                .map(|i| consume_mul_at_point(&zone[i..]))
+        })
+        .sum())
 }
