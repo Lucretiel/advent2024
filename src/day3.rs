@@ -22,13 +22,13 @@ fn parse_mul(input: &str) -> IResult<&str, (i32, i32), ()> {
     .parse(input)
 }
 
-fn consume_mul_at_point(input: &str) -> i32 {
-    parse_mul(input).ok().map(|(_, (a, b))| a * b).unwrap_or(0)
+fn consume_mul_at_point(input: &str) -> Option<i32> {
+    parse_mul(input).ok().map(|(_, (a, b))| a * b)
 }
 
 pub fn part1(input: &str) -> Definitely<i32> {
     Ok(memmem::find_iter(input.as_bytes(), b"mul")
-        .map(|i| consume_mul_at_point(&input[i..]))
+        .filter_map(|i| consume_mul_at_point(&input[i..]))
         .sum())
 }
 
@@ -66,10 +66,7 @@ pub fn part2(mut input: &str) -> Definitely<i32> {
 
     let mul_finder = memmem::Finder::new("mul");
     Ok(enabled_zones
-        .flat_map(|zone| {
-            mul_finder
-                .find_iter(zone.as_bytes())
-                .map(|i| consume_mul_at_point(&zone[i..]))
-        })
+        .flat_map(|zone| mul_finder.find_iter(zone.as_bytes()).map(|i| &zone[i..]))
+        .filter_map(|mul| consume_mul_at_point(mul))
         .sum())
 }
