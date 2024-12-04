@@ -1,11 +1,8 @@
-use std::convert::Infallible;
-
 use anyhow::Context;
 use gridly::prelude::*;
 use gridly_grids::VecGrid;
-use nom_supreme::{error::ErrorTree, final_parser::final_parser};
 
-use crate::library::{Definitely, ITResult};
+use crate::library::Definitely;
 
 #[derive(Debug)]
 pub struct Input {
