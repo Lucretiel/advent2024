@@ -47,6 +47,7 @@ pub fn part1(input: Input) -> Definitely<usize> {
         .count())
 }
 
+/// Test that an "X-MAS" appears in the grid at the given location.
 fn test_mas(grid: &impl Grid<Item = u8>, location: Location) -> bool {
     grid.get(location).copied().ok() == Some(b'A')
         && [Left, Right].iter().all(|&offset| {
