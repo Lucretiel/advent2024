@@ -38,9 +38,7 @@ pub fn part1(input: Input) -> Definitely<usize> {
                 input
                     .grid
                     .get(location + (direction * offset))
-                    .copied()
-                    .ok()
-                    .map(|cell| cell == byte)
+                    .map(|&cell| cell == byte)
                     .unwrap_or(false)
             })
         })
@@ -53,13 +51,10 @@ fn test_mas(grid: &impl Grid<Item = u8>, location: Location) -> bool {
         && [Left, Right].iter().all(|&offset| {
             let neighbor = Up + offset;
 
-            let above = grid.get(location + neighbor).copied().ok();
-            let below = grid.get(location - neighbor).copied().ok();
+            let above = grid.get(location + neighbor).copied();
+            let below = grid.get(location - neighbor).copied();
 
-            matches!(
-                (above, below),
-                (Some(b'M'), Some(b'S')) | (Some(b'S'), Some(b'M'))
-            )
+            matches!((above, below), (Ok(b'M'), Ok(b'S')) | (Ok(b'S'), Ok(b'M')))
         })
 }
 
