@@ -180,7 +180,7 @@ where
     }
 }
 
-// TODO: Add an algorithm for state preservation when retrying tasks
+// TODO: add a mechanism to request a set of dependencies as a block
 
 /// Solve a dynamic algorithm.
 ///
@@ -198,11 +198,16 @@ where
 /// solution, you can call `subtasker.precheck(iter)?` at the beginning of
 /// your Task::solve implementation with an iterator over all the subgoal
 /// dependencies you're expecting
-pub fn execute<K: PartialEq, V, E, T: Task<K, V, E>, S: SubtaskStore<K, V>>(
-    goal: K,
-    task: &T,
-    store: S,
-) -> Result<V, DynamicError<K, E>> {
+pub fn execute<Goal, Answer, Error, Implementation, Store>(
+    goal: Goal,
+    task: &Implementation,
+    store: Store,
+) -> Result<Answer, DynamicError<Goal, Error>>
+where
+    Goal: PartialEq,
+    Implementation: Task<Goal, Answer, Error>,
+    Store: SubtaskStore<Goal, Answer>,
+{
     let mut subtasker = Subtasker { store };
 
     // TODO: use an ordered hash map for faster circular checks
