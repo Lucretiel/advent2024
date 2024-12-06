@@ -14,6 +14,7 @@ use nom_supreme::{error::ErrorTree, tag::TagError};
 macro_rules! express {
     ($receiver:ident $(.$method:ident($($args:tt)*))*) => {
         {
+            #[allow(unused_mut)]
             let mut receiver = $receiver;
             $(
                 receiver.$method($($args)*);
@@ -439,42 +440,15 @@ where
         let mut accum = init();
 
         loop {
-            let (block, tail) = match input.split_once(separator) {
-                None if input.is_empty() => return Ok(("", accum)),
-                None => (input, ""),
-                Some(pair) => pair,
-            };
-
-            let rebuild_tail = |local_tail_len: usize| {
-                let rebuilt_tail_len = tail.len() + separator.len() + local_tail_len;
-                let parsed_len = input.len() - rebuilt_tail_len;
-                &input[parsed_len..]
-            };
-
-            let item = match item_parser.parse(block) {
-                Ok(("", item)) => item,
-                Ok((local_tail, _)) => {
-                    return Err(nom::Err::Error(E::from_tag(
-                        rebuild_tail(local_tail.len()),
-                        separator,
-                    )));
+            let (tail, item) = match split_once_parser_helper(input, separator, &mut item_parser) {
+                SplitOnceParserOutput::Success(out) => out,
+                SplitOnceParserOutput::NoSplit if input.is_empty() => return Ok(("", accum)),
+                SplitOnceParserOutput::NoSplit => {
+                    return item_parser
+                        .parse(input)
+                        .map(|(tail, item)| (tail, fold(accum, item)))
                 }
-                Err(nom::Err::Error(err)) => {
-                    return Err(nom::Err::Error(
-                        err.map_location(|local_tail| rebuild_tail(local_tail.len())),
-                    ))
-                }
-                Err(nom::Err::Failure(err)) => {
-                    return Err(nom::Err::Failure(
-                        err.map_location(|local_tail| rebuild_tail(local_tail.len())),
-                    ))
-                }
-                Err(nom::Err::Incomplete(_)) => {
-                    return Err(nom::Err::Error(E::from_error_kind(
-                        rebuild_tail(0),
-                        nom::error::ErrorKind::Complete,
-                    )))
-                }
+                SplitOnceParserOutput::Err(err) => return Err(err),
             };
 
             accum = fold(accum, item);
@@ -496,6 +470,71 @@ where
     split_parser_fold(item_parser, separator, T::default, |collection, item| {
         express!(collection.extend([item]))
     })
+}
+
+enum SplitOnceParserOutput<I, O, E> {
+    Success((I, O)),
+    NoSplit,
+    Err(E),
+}
+
+fn split_once_parser_helper<'i, 's, T, E>(
+    input: &'i str,
+    separator: &'s str,
+    parser: &mut impl Parser<&'i str, T, E>,
+) -> SplitOnceParserOutput<&'i str, T, nom::Err<E>>
+where
+    E: TagError<&'i str, &'s str>,
+    E: ErrorWithLocation<&'i str>,
+    E: ParseError<&'i str>,
+{
+    let Some((left, right)) = input.split_once(separator) else {
+        return SplitOnceParserOutput::NoSplit;
+    };
+
+    let rebuild_tail = |local_tail: &str| {
+        let rebuilt_tail_len = local_tail.len() + separator.len() + right.len();
+        let parsed_len = input.len() - rebuilt_tail_len;
+        &input[parsed_len..]
+    };
+
+    match parser.parse(left) {
+        Ok(("", item)) => SplitOnceParserOutput::Success((right, item)),
+        Ok((tail, _)) => {
+            SplitOnceParserOutput::Err(nom::Err::Error(E::from_tag(rebuild_tail(tail), separator)))
+        }
+        Err(nom::Err::Incomplete(_)) => SplitOnceParserOutput::Err(nom::Err::Error(
+            E::from_error_kind(rebuild_tail(""), nom::error::ErrorKind::Complete),
+        )),
+        Err(err) => SplitOnceParserOutput::Err(
+            err.map(|err| err.map_location(|local_tail| rebuild_tail(local_tail))),
+        ),
+    }
+}
+
+/// Split the input string up to the `separator``, then run the `parser` on
+/// the prefix. The `parser` *must* consume the entire prefix string.
+pub fn split_once_parser<'i, 's, T, E>(
+    mut parser: impl Parser<&'i str, T, E> + 's,
+    separator: &'s str,
+) -> impl Parser<&'i str, T, E> + 's
+where
+    E: ErrorWithLocation<&'i str>,
+    E: TagError<&'i str, &'s str>,
+    E: ParseError<&'i str>,
+{
+    if separator.is_empty() {
+        panic!("can't create a split parser with an empty separator")
+    }
+
+    move |input: &'i str| match split_once_parser_helper(input, separator, &mut parser) {
+        SplitOnceParserOutput::Success(out) => Ok(out),
+        SplitOnceParserOutput::NoSplit => Err(nom::Err::Error(E::from_error_kind(
+            "",
+            nom::error::ErrorKind::Eof,
+        ))),
+        SplitOnceParserOutput::Err(err) => Err(err),
+    }
 }
 
 pub type ITResult<I, O> = IResult<I, O, ErrorTree<I>>;
