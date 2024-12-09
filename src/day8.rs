@@ -1,7 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    iter,
+};
 
 use gcd::Gcd;
-use gridly::prelude::*;
+use gridly::{location, prelude::*};
 use nom_supreme::error::ErrorTree;
 
 use crate::library::{Definitely, IterExt};
@@ -57,24 +60,37 @@ impl TryFrom<&str> for Input {
     }
 }
 
-pub fn part1(input: Input) -> Definitely<usize> {
+fn count_antinodes<I>(input: &Input, list_antinodes: impl Fn(Location, Location) -> I) -> usize
+where
+    I: IntoIterator<Item = Location>,
+{
     let mut antinodes = HashSet::new();
 
     for (&_freq, locations) in input.map.iter() {
         for &location1 in locations.iter() {
             for &location2 in locations.iter() {
                 if location1 != location2 {
-                    let vector = location2 - location1;
-                    let antinode = location1 + (vector * 2);
-                    if input.location_in_bounds(antinode) {
-                        antinodes.insert(antinode);
-                    }
+                    antinodes.extend(
+                        list_antinodes(location1, location2)
+                            .into_iter()
+                            .take_while(|location| input.location_in_bounds(location)),
+                    );
                 }
             }
         }
     }
 
-    Ok(antinodes.len())
+    antinodes.len()
+}
+
+pub fn part1(input: Input) -> Definitely<usize> {
+    let count = count_antinodes(&input, |location1, location2| {
+        let vector = location2 - location1;
+        let antinode = location1 + (vector * 2);
+        [antinode]
+    });
+
+    Ok(count)
 }
 
 fn reduce(vector: Vector) -> Vector {
@@ -90,25 +106,14 @@ fn reduce(vector: Vector) -> Vector {
 }
 
 pub fn part2(input: Input) -> Definitely<usize> {
-    let mut antinodes = HashSet::new();
+    let count = count_antinodes(&input, |location1, location2| {
+        let vector = location2 - location1;
+        let vector = reduce(vector);
 
-    for (&_freq, locations) in input.map.iter() {
-        for &location1 in locations.iter() {
-            for &location2 in locations.iter() {
-                if location1 != location2 {
-                    let vector = location2 - location1;
-                    let vector = reduce(vector);
+        (0..)
+            .map(move |factor| vector * factor)
+            .map(move |vector| location1 + vector)
+    });
 
-                    antinodes.extend(
-                        (0..)
-                            .map(|factor| vector * factor)
-                            .map(|vector| location1 + vector)
-                            .take_while(|antinode| input.location_in_bounds(antinode)),
-                    );
-                }
-            }
-        }
-    }
-
-    Ok(antinodes.len())
+    Ok(count)
 }
