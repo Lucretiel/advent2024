@@ -5,7 +5,6 @@ use std::{
     path::PathBuf,
 };
 
-use joinery::{separators::Newline, JoinableIterator};
 use lazy_format::lazy_format;
 use nom::{bytes::complete::tag, character::complete::digit1, IResult, Parser};
 use nom_supreme::ParserExt;
@@ -43,47 +42,32 @@ fn main() {
         })
         .collect();
 
-    let mods = days
-        .iter()
-        .map(|day| {
-            // HATE HATE HATE HATE
-            lazy_format!("#[path = \"../../../../../src/day{day}.rs\"] mod day{day};",)
-        })
-        .join_with(Newline);
+    let days = days.as_slice();
 
-    let enum_variants = days
-        .iter()
-        .map(|day| lazy_format!("Day{},", day))
-        .join_with(Newline);
+    let mods = lazy_format!(
+        // HATE HATE HATE HATE
+        "#[path = \"../../../../../src/day{day}.rs\"] mod day{day};\n"
+        for day in days
+    );
 
-    let match_arms = days
-        .iter()
-        .map(|day| lazy_format!("{day} => Ok(Day::Day{day}),", day = day))
-        .join_with(Newline);
-
-    let solver_match_arms = days
-        .iter()
-        .flat_map(|&day| [(day, 1), (day, 2)])
-        .map(|(day, part)| {
-            lazy_format!(
-                "#[allow(clippy::unnecessary_fallible_conversions)]
-                #[allow(clippy::useless_conversion)]
-                (Day::Day{day}, Part::Part{part}) => input
-                    .try_into()
-                    .map(|input| {{
-                        if show_input {{
-                            eprintln!(\"Parsed input:\n{{input:#?}}\");
-                        }}
-                        input
-                    }})
-                    .context(\"failed to parse input\")
-                    .and_then(|input| day{day}::part{part}(input).context(\"failed to compute solution after successful parse\"))
-                    .context(\"failed to solve day {day}, part {part}\")
-                    .map(|solution| println!(\"{{solution}}\")),
-                ",
-            )
-        })
-        .join_with(Newline);
+    let enum_variants = lazy_format!("Day{day},\n" for day in days);
+    let match_arms = lazy_format!("{day} => Ok(Day::Day{day}),\n" for day in days);
+    let solver_match_arms = lazy_format!(
+        "#[allow(clippy::unnecessary_fallible_conversions)]
+        #[allow(clippy::useless_conversion)]
+        (Day::Day{day}, Part::Part{part}) => input
+            .try_into()
+            .inspect(|input| {{
+                if show_input {{
+                    eprintln!(\"Parsed input:\n{{input:#?}}\");
+                }}
+            }})
+            .context(\"failed to parse input\")
+            .and_then(|input| day{day}::part{part}(input).context(\"failed to compute solution after successful parse\"))
+            .context(\"failed to solve day {day}, part {part}\")
+            .map(|solution| println!(\"{{solution}}\")),\n"
+        for (day, part) in days.iter().flat_map(|&day| [(day, 1), (day, 2)])
+    );
 
     let generated_content = lazy_format!(
         "
