@@ -82,7 +82,7 @@ fn matches(target: i64, list: &[i64], tail: i64, allow_concat: bool) -> bool {
     }
 }
 
-fn count_digits(value: i64) -> u32 {
+pub fn count_digits(value: i64) -> u32 {
     match value {
         0 => 1,
         value => value.ilog10() + 1,
