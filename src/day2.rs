@@ -80,7 +80,7 @@ fn is_safe_with_damper(levels: &[i32], rule: impl Copy + Fn(i32, i32) -> bool) -
     let right_unsafe_point = levels
         .array_windows()
         .rposition(|&[left, right]| !rule(left, right))
-        .expect("There is known to be at leawst one problematic index");
+        .expect("There is known to be at least one problematic index");
 
     match right_unsafe_point - left_unsafe_point {
         // There is precisely one problematic pair, so both of its elements are
@@ -95,7 +95,7 @@ fn is_safe_with_damper(levels: &[i32], rule: impl Copy + Fn(i32, i32) -> bool) -
         1 => test_report_with_omitted_index(levels, right_unsafe_point, rule),
 
         // The problematic points are too far apart. There is known to be at
-        // leat two problematic pairs, so the whole report is unsafe.
+        // least two problematic pairs, so the whole report is unsafe.
         _ => false,
     }
 }

@@ -126,7 +126,7 @@ impl Memory {
         }
     }
 
-    fn compute_checksome(&self) -> i64 {
+    fn compute_checksum(&self) -> i64 {
         self.allocated
             .iter()
             .map(|&(ref block, FileID(file_id))| block.checksum_with(file_id as i64))
@@ -169,7 +169,7 @@ fn parse_input(input: &str) -> ITResult<&str, Input> {
         parse_digit.and(parse_digit),
         success(()),
         multispace0.terminated(eof),
-        // Initialize a new memory with the intial file
+        // Initialize a new memory with the initial file
         move || {
             let mut memory = Memory::default();
             memory.allocated.push_back((
@@ -218,10 +218,10 @@ impl TryFrom<&str> for Input {
 
 pub fn part1(mut input: Input) -> Definitely<i64> {
     input.memory.shift_all();
-    Ok(input.memory.compute_checksome())
+    Ok(input.memory.compute_checksum())
 }
 
 pub fn part2(mut input: Input) -> Definitely<i64> {
     input.memory.shift_all_without_fragmentation();
-    Ok(input.memory.compute_checksome())
+    Ok(input.memory.compute_checksum())
 }
