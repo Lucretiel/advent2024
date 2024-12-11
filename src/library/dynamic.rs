@@ -21,6 +21,23 @@ pub trait SubtaskStore<K, V> {
     fn contains(&self, goal: &K) -> bool;
 }
 
+impl<K, V, T> SubtaskStore<K, V> for &mut T
+where
+    T: SubtaskStore<K, V>,
+{
+    fn add(&mut self, goal: K, solution: V) -> Option<V> {
+        T::add(*self, goal, solution)
+    }
+
+    fn get(&self, goal: &K) -> Option<&V> {
+        T::get(*self, goal)
+    }
+
+    fn contains(&self, goal: &K) -> bool {
+        T::contains(*self, goal)
+    }
+}
+
 impl<K, V, S> SubtaskStore<K, V> for HashMap<K, V, S>
 where
     K: Eq + Hash,
@@ -72,52 +89,43 @@ impl<'a, K, E> From<Dependency<'a, K>> for TaskInterrupt<'a, K, E> {
     }
 }
 
-pub trait Subtask<K, V> {
-    fn precheck(&self, goals: impl IntoIterator<Item = K>) -> Result<(), Dependency<K>>;
-    fn solve(&self, goal: K) -> Result<&V, Dependency<K>>;
+pub trait Subtask<Goal, Solution> {
+    fn precheck(&self, goals: impl IntoIterator<Item = Goal>) -> Result<(), Dependency<'_, Goal>>;
+    fn solve(&self, goal: Goal) -> Result<&Solution, Dependency<'_, Goal>>;
 }
 
-pub trait Task<K, V, E> {
+pub trait Task<Goal, Solution, Error> {
     type State;
 
-    fn solve<'sub, T>(
+    fn solve<'sub>(
         &self,
-        goal: &K,
-        subtasker: &'sub T,
+        goal: &Goal,
+        subtasker: &'sub impl Subtask<Goal, Solution>,
         state: &mut Option<Self::State>,
-    ) -> Result<V, TaskInterrupt<'sub, K, E>>
-    where
-        T: Subtask<K, V>,
-        K: 'sub,
-        V: 'sub;
+    ) -> Result<Solution, TaskInterrupt<'sub, Goal, Error>>;
 }
 
-pub trait StatelessTask<K, V, E> {
-    fn solve<'sub, T>(&self, goal: &K, subtasker: &'sub T) -> Result<V, TaskInterrupt<'sub, K, E>>
-    where
-        T: Subtask<K, V>,
-        K: 'sub,
-        V: 'sub;
+pub trait StatelessTask<Goal, Solution, Error> {
+    fn solve<'sub>(
+        &self,
+        goal: &Goal,
+        subtasker: &'sub impl Subtask<Goal, Solution>,
+    ) -> Result<Solution, TaskInterrupt<'sub, Goal, Error>>;
 }
 
-impl<K, V, E, S> Task<K, V, E> for S
+impl<Goal, Solution, Error, T> Task<Goal, Solution, Error> for T
 where
-    S: StatelessTask<K, V, E>,
+    T: StatelessTask<Goal, Solution, Error>,
 {
     type State = Infallible;
 
     #[inline(always)]
-    fn solve<'sub, T>(
+    fn solve<'sub>(
         &self,
-        goal: &K,
-        subtasker: &'sub T,
+        goal: &Goal,
+        subtasker: &'sub impl Subtask<Goal, Solution>,
         _state: &mut Option<Infallible>,
-    ) -> Result<V, TaskInterrupt<'sub, K, E>>
-    where
-        T: Subtask<K, V>,
-        K: 'sub,
-        V: 'sub,
-    {
+    ) -> Result<Solution, TaskInterrupt<'sub, Goal, Error>> {
         StatelessTask::solve(self, goal, subtasker)
     }
 }
@@ -198,15 +206,13 @@ where
 /// solution, you can call `subtasker.precheck(iter)?` at the beginning of
 /// your Task::solve implementation with an iterator over all the subgoal
 /// dependencies you're expecting
-pub fn execute<Goal, Answer, Error, Implementation, Store>(
+pub fn execute<Goal, Solution, Error>(
     goal: Goal,
-    task: &Implementation,
-    store: Store,
-) -> Result<Answer, DynamicError<Goal, Error>>
+    task: &impl Task<Goal, Solution, Error>,
+    store: impl SubtaskStore<Goal, Solution>,
+) -> Result<Solution, DynamicError<Goal, Error>>
 where
     Goal: PartialEq,
-    Implementation: Task<Goal, Answer, Error>,
-    Store: SubtaskStore<Goal, Answer>,
 {
     let mut subtasker = Subtasker { store };
 
