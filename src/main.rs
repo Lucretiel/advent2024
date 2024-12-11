@@ -70,6 +70,8 @@ struct Args {
     #[arg(short, long)]
     part: Part,
 
+    /// If given, before the solution is printed, the parsed input for the
+    /// problem will be printed to stderr
     #[arg(short = 'v', long)]
     show_input: bool,
 
