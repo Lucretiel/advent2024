@@ -127,7 +127,7 @@ fn detect_loop(
     let mut seen_states = HashSet::new();
 
     loop {
-        if seen_states.insert(guard) == false {
+        if !seen_states.insert(guard) {
             return Ok(Outcome::Loop);
         }
 

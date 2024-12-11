@@ -1,10 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet},
-    iter,
-};
+use std::collections::{HashMap, HashSet};
 
 use gcd::Gcd;
-use gridly::{location, prelude::*};
+use gridly::prelude::*;
 use nom_supreme::error::ErrorTree;
 
 use crate::library::{Definitely, IterExt};
@@ -94,8 +91,8 @@ pub fn part1(input: Input) -> Definitely<usize> {
 }
 
 fn reduce(vector: Vector) -> Vector {
-    let rows = vector.rows.0.abs() as usize;
-    let columns = vector.columns.0.abs() as usize;
+    let rows = vector.rows.0.unsigned_abs();
+    let columns = vector.columns.0.unsigned_abs();
 
     let gcd = Gcd::gcd(rows, columns) as isize;
 

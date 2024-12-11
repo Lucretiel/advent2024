@@ -67,6 +67,6 @@ pub fn part2(mut input: &str) -> Definitely<i32> {
     let mul_finder = memmem::Finder::new("mul");
     Ok(enabled_zones
         .flat_map(|zone| mul_finder.find_iter(zone.as_bytes()).map(|i| &zone[i..]))
-        .filter_map(|mul| consume_mul_at_point(mul))
+        .filter_map(consume_mul_at_point)
         .sum())
 }

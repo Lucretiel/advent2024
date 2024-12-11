@@ -67,11 +67,11 @@ fn matches(target: i64, list: &[i64], tail: i64, allow_concat: bool) -> bool {
     };
 
     if tail > target {
-        return false;
-    } else if matches(target - tail, list, next, allow_concat) {
-        return true;
-    } else if target % tail == 0 && matches(target / tail, list, next, allow_concat) {
-        return true;
+        false
+    } else if matches(target - tail, list, next, allow_concat)
+        || (target % tail == 0 && matches(target / tail, list, next, allow_concat))
+    {
+        true
     } else if allow_concat {
         match unconcat(target, tail) {
             None => false,
