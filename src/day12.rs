@@ -41,12 +41,15 @@ fn explore(
     territory: &HashMap<Location, Cell>,
     root: &Location,
     id: Cell,
-    explored_territory: &mut HashSet<Location>,
+    explored_territory: &mut HashSet<&Location>,
 ) -> usize {
     let mut area = 0;
     let mut perimiter = 0;
 
-    let mut region = HashSet::from([root]);
+    explored_territory.insert(root);
+    area += 1;
+
+    for direction in EACH_DIRECTION {}
 }
 
 pub fn part1(input: Input) -> anyhow::Result<Infallible> {
