@@ -17,9 +17,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Vector {
-    x: i64,
-    y: i64,
+pub struct Vector {
+    pub x: i64,
+    pub y: i64,
 }
 
 impl Add for Vector {
