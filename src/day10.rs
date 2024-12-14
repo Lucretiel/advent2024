@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use gridly::prelude::*;
 use gridly_grids::VecGrid;
 use nom::{
+    Parser,
     branch::alt,
     character::complete::char,
     combinator::{eof, success},
     error::ParseError,
-    Parser,
 };
 use nom_supreme::{
-    error::ErrorTree, final_parser::final_parser, multi::collect_separated_terminated, ParserExt,
+    ParserExt, error::ErrorTree, final_parser::final_parser, multi::collect_separated_terminated,
 };
 use thiserror::Error;
 
@@ -139,7 +139,7 @@ fn solve<T>(
         .rows()
         .iter()
         .flat_map(|row| row.iter_with_locations())
-        .filter(|(_, &height)| height.is_start())
+        .filter(|&(_, &height)| height.is_start())
         .map(move |(location, &height)| {
             count_trails(explore(
                 &input.grid,

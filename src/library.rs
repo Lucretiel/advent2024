@@ -1,13 +1,14 @@
 #![allow(dead_code)]
 
 pub mod counter;
+pub mod direction_map;
 pub mod dynamic;
 
 use std::{convert::Infallible, iter::FusedIterator, mem, ops::ControlFlow};
 
 use brownstone::move_builder::{ArrayBuilder, PushResult};
 use gridly::location::{Column, Row};
-use nom::{error::ParseError, IResult, Parser};
+use nom::{IResult, Parser, error::ParseError};
 use nom_supreme::{error::ErrorTree, tag::TagError};
 
 #[macro_export]
@@ -446,7 +447,7 @@ where
                 SplitOnceParserOutput::NoSplit => {
                     return item_parser
                         .parse(input)
-                        .map(|(tail, item)| (tail, fold(accum, item)))
+                        .map(|(tail, item)| (tail, fold(accum, item)));
                 }
                 SplitOnceParserOutput::Err(err) => return Err(err),
             };

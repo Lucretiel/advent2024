@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
     cmp::Reverse,
-    collections::{btree_map, hash_map, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map, hash_map},
     hash::Hash,
     marker::PhantomData,
     num::NonZeroUsize,
@@ -58,8 +58,14 @@ pub trait CounterStore: Sized {
 
 impl<T: Hash + Eq> CounterStore for HashMap<T, usize> {
     type Item = T;
-    type IterItem<'a> = &'a T where T: 'a;
-    type Iter<'a> = hash_map::Iter<'a, T, usize> where T: 'a;
+    type IterItem<'a>
+        = &'a T
+    where
+        T: 'a;
+    type Iter<'a>
+        = hash_map::Iter<'a, T, usize>
+    where
+        T: 'a;
 
     #[inline]
     #[must_use]
@@ -98,8 +104,14 @@ impl<T: Hash + Eq> CounterStore for HashMap<T, usize> {
 
 impl<T: Ord> CounterStore for BTreeMap<T, usize> {
     type Item = T;
-    type IterItem<'a> = &'a T where T: 'a;
-    type Iter<'a> = btree_map::Iter<'a, T, usize> where T: 'a;
+    type IterItem<'a>
+        = &'a T
+    where
+        T: 'a;
+    type Iter<'a>
+        = btree_map::Iter<'a, T, usize>
+    where
+        T: 'a;
 
     #[inline]
     #[must_use]
@@ -138,8 +150,14 @@ impl<T: Ord> CounterStore for BTreeMap<T, usize> {
 
 impl<T: EnumArray<usize> + Copy> CounterStore for EnumMap<T, usize> {
     type Item = T;
-    type IterItem<'a> = T where T: 'a;
-    type Iter<'a> = enum_map::Iter<'a, T, usize> where T: 'a;
+    type IterItem<'a>
+        = T
+    where
+        T: 'a;
+    type Iter<'a>
+        = enum_map::Iter<'a, T, usize>
+    where
+        T: 'a;
 
     #[inline]
     #[must_use]
@@ -161,7 +179,7 @@ impl<T: EnumArray<usize> + Copy> CounterStore for EnumMap<T, usize> {
     #[inline]
     #[must_use]
     fn len(&self) -> usize {
-        self.iter().filter(|(_, &count)| count > 0).count()
+        self.iter().filter(|&(_, &count)| count > 0).count()
     }
 
     #[inline]

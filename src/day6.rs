@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use gridly::prelude::*;
 use gridly_grids::SparseGrid;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -110,7 +110,7 @@ impl<G: Grid<Item = Option<Obstacle>>> Grid for ExtraObstacle<G> {
         if location == self.location {
             &OBSTACLE
         } else {
-            self.grid.get_unchecked(location)
+            unsafe { self.grid.get_unchecked(location) }
         }
     }
 }
