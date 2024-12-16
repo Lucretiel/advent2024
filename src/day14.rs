@@ -1,8 +1,4 @@
 use std::cmp::Ordering;
-use std::convert::Infallible;
-use std::fmt::Display;
-use std::thread::sleep;
-use std::time::Duration;
 
 use anyhow::Context;
 use enum_map::Enum;
@@ -157,6 +153,8 @@ fn get_env_room() -> anyhow::Result<Option<Vector>> {
     })
 }
 
+#[expect(clippy::format_in_format_args)]
+#[allow(unused)]
 fn print_room(dimensions: &Vector, robots: &[Robot]) {
     let room = (0..dimensions.y)
         .map(move |y| {
@@ -173,7 +171,7 @@ fn print_room(dimensions: &Vector, robots: &[Robot]) {
         })
         .join_with(Newline);
 
-    eprintln!("{}", room);
+    eprintln!("{}", format!("{}", room));
 }
 
 const DEFAULT_ROOM_HEIGHT: i64 = 103;
@@ -193,43 +191,129 @@ pub fn part1(mut input: Input) -> anyhow::Result<usize> {
         .iter_mut()
         .for_each(|robot| robot.take_steps(100, &room));
 
-    print_room(&room, &input.robots);
-
     let robot_counts: EnumCounter<Quadrant> = input
         .robots
         .iter()
         .filter_map(|robot| robot.compute_quadrant(&room))
         .collect();
 
-    eprintln!(
-        "got {} robots in quadrants",
-        robot_counts
-            .iter()
-            .map(|(_, count)| count.get())
-            .sum::<usize>()
-    );
-
     // This will be wrong if any quadrant is empty, since counters skip those.
-    Ok(dbg!(robot_counts)
-        .iter()
-        .map(|(_, count)| count.get())
-        .product())
+    Ok(robot_counts.iter().map(|(_, count)| count.get()).product())
 }
 
-pub fn part2(mut input: Input) -> anyhow::Result<Infallible> {
-    let room = get_env_room()?.unwrap_or(DEFAULT_ROOM);
+/// Return a score indicating the chance that this is the image we want. Higher
+/// scores are better
+fn score_robots(robots: &[Robot]) -> i64 {
+    robots
+        .iter()
+        .flat_map(|robot1| {
+            robots.iter().map(|robot2| {
+                let dx = robot1.position.x - robot2.position.x;
+                let dy = robot1.position.y - robot2.position.y;
 
-    for tick in 1.. {
-        input
-            .robots
-            .iter_mut()
-            .for_each(|robot| robot.take_steps(1, &room));
+                let dx = dx.abs();
+                let dy = dy.abs();
 
-        print_room(&room, &input.robots);
-        eprintln!("{tick}");
+                match (dx, dy) {
+                    (0, 1) | (1, 0) => 2,
+                    (1, 1) => 1,
+                    _ => 0,
+                }
+            })
+        })
+        .sum()
+}
 
-        sleep(Duration::from_millis(100));
+struct Best<T, const COUNT: usize> {
+    items: Vec<T>,
+}
+
+impl<T: Clone + Ord, const COUNT: usize> Best<T, COUNT> {
+    fn new() -> Self {
+        Self {
+            items: Vec::with_capacity(COUNT),
+        }
     }
 
-    anyhow::bail!("infinite loop wasn't infinite")
+    fn insert(&mut self, item: &T) {
+        if self.items.len() < COUNT {
+            self.items.push(item.clone());
+        } else {
+            let Some(first) = self.items.first_mut() else {
+                return;
+            };
+
+            if *first < *item {
+                *first = item.clone()
+            }
+        }
+
+        self.items.sort_unstable();
+    }
+
+    fn best(&self) -> Option<&T> {
+        self.items.first()
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct RobotSnapshot {
+    score: i64,
+    robots: Vec<Robot>,
+}
+
+impl RobotSnapshot {
+    fn new(robots: Vec<Robot>) -> Self {
+        Self {
+            score: score_robots(&robots),
+            robots,
+        }
+    }
+    fn step(&mut self, room: &Vector) {
+        self.robots
+            .iter_mut()
+            .for_each(|robot| robot.take_steps(1, room));
+
+        self.score = score_robots(&self.robots)
+    }
+}
+
+impl PartialEq for RobotSnapshot {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(Ord::cmp(self, other), Ordering::Equal)
+    }
+}
+
+impl Eq for RobotSnapshot {}
+
+impl PartialOrd for RobotSnapshot {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(Ord::cmp(self, other))
+    }
+}
+
+impl Ord for RobotSnapshot {
+    fn cmp(&self, other: &Self) -> Ordering {
+        Ord::cmp(&self.score, &other.score)
+    }
+}
+
+pub fn part2(input: Input) -> anyhow::Result<i64> {
+    let room = get_env_room()?.unwrap_or(DEFAULT_ROOM);
+
+    // Don't want to deal with off-by-one, so just do 1.5x the cycle length
+    let cycle_length = (room.x * room.y * 3) / 2;
+
+    let mut best: Best<_, 1> = Best::new();
+    let mut robots = RobotSnapshot::new(input.robots);
+
+    for tick in 1..cycle_length {
+        robots.step(&room);
+
+        let pair = (robots, tick);
+        best.insert(&pair);
+        robots = pair.0;
+    }
+
+    Ok(best.best().unwrap().1)
 }
