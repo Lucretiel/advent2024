@@ -195,7 +195,10 @@ macro_rules! parser {
     ) => {
         move |input| -> nom::IResult<_, _, _> {
             $(
-                let (input, value) = $parser.parse(input)?;
+                let (input, value) = match $parser.parse(input) {
+                    Ok(out) => out,
+                    Err(err) => return Err(err),
+                };
                 $(
                     let $bind = value;
                     let value = ();
