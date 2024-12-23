@@ -229,7 +229,7 @@ pub struct Windows<I: Iterator, const N: usize> {
     state: State<I::Item, N>,
 }
 
-fn try_build_iter<I, const N: usize>(iter: I) -> Option<[I::Item; N]>
+pub fn try_build_iter<I, const N: usize>(iter: I) -> Option<[I::Item; N]>
 where
     I: IntoIterator,
 {
@@ -248,7 +248,7 @@ where
     result.break_value()
 }
 
-fn build_iter<I, const N: usize>(iter: I) -> [I::Item; N]
+pub fn build_iter<I, const N: usize>(iter: I) -> [I::Item; N]
 where
     I: IntoIterator,
 {
@@ -587,4 +587,22 @@ where
             })
             .0
     }
+}
+
+#[macro_export]
+macro_rules! cmp_all {
+    (
+        $($lhs:expr, $rhs:expr;)*
+    ) => {{
+        let out = ::std::cmp::Ordering::Equal;
+
+        $(
+            let out = match out {
+                ::std::cmp::Ordering::Equal => ::std::cmp::Ord::cmp(&$lhs, &$rhs),
+                out => out,
+            };
+        )*
+
+        out
+    }}
 }
