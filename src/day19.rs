@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BTreeMap, iter::repeat, };
+use std::{cmp::Ordering, collections::BTreeMap, iter::repeat};
 
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
